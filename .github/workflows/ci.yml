@@ -7,17 +7,45 @@ on:
     branches: [main]
 
 jobs:
-  build-and-test:
+  test-matrix:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18, 20, 22]
+        node-version: ["20", "22"]
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node-version }}
-          cache: npm
-      - run: npm ci
-      - run: npm run build
-      - run: npm test
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format check with prettier
+        run: npx prettier --check .
+
+      - name: Type check with tsc
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  test:
+    needs: [test-matrix]
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: Check test matrix status
+        run: |
+          if [ "${{ needs.test-matrix.result }}" != "success" ]; then
+            echo "Test matrix failed with result: ${{ needs.test-matrix.result }}"
+            exit 1
+          fi
+          echo "All tests passed!"

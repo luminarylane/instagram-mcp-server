@@ -66,6 +66,7 @@ npm run build
 ### Configuration
 
 **Claude Desktop (`claude_desktop_config.json`):**
+
 ```json
 {
   "mcpServers": {
@@ -83,16 +84,17 @@ npm run build
 
 **Environment variables:**
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `INSTAGRAM_ACCESS_TOKEN` | Yes* | Long-lived Facebook Page Access Token |
-| `INSTAGRAM_BUSINESS_ACCOUNT_ID` | Yes* | 17-digit IG Business Account ID |
+| Variable                        | Required | Description                           |
+| ------------------------------- | -------- | ------------------------------------- |
+| `INSTAGRAM_ACCESS_TOKEN`        | Yes\*    | Long-lived Facebook Page Access Token |
+| `INSTAGRAM_BUSINESS_ACCOUNT_ID` | Yes\*    | 17-digit IG Business Account ID       |
 
-*Can also be passed per-call via tool arguments.
+\*Can also be passed per-call via tool arguments.
 
 ### Finding Your Business Account ID
 
 Use the Graph API Explorer:
+
 ```
 GET /me/accounts?fields=instagram_business_account
 ```

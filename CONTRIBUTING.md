@@ -27,6 +27,7 @@ npm test         # Run tests
 ## Reporting Issues
 
 Open an issue with:
+
 - What you expected to happen
 - What actually happened
 - Steps to reproduce

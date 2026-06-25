@@ -161,11 +161,12 @@ describe("InstagramClient — error handling", () => {
   });
 
   it("wraps non-JSON HTML error responses in InstagramApiError", async () => {
-    const fetchMock = vi.fn(async () =>
-      new Response("<html>502 Bad Gateway</html>", {
-        status: 502,
-        headers: { "content-type": "text/html" },
-      }),
+    const fetchMock = vi.fn(
+      async () =>
+        new Response("<html>502 Bad Gateway</html>", {
+          status: 502,
+          headers: { "content-type": "text/html" },
+        }),
     );
     vi.stubGlobal("fetch", fetchMock);
 

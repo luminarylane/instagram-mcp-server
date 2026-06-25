@@ -12,14 +12,7 @@
  * breaks during Graph API changes (see the 7 bugs fixed in this session).
  */
 
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-} from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 import {
   safeHandler,
@@ -230,11 +223,7 @@ describe("pollContainerStatus", () => {
   });
 
   it("throws after maxAttempts exhausted without FINISHED", async () => {
-    const client = makeClient([
-      "IN_PROGRESS",
-      "IN_PROGRESS",
-      "IN_PROGRESS",
-    ]);
+    const client = makeClient(["IN_PROGRESS", "IN_PROGRESS", "IN_PROGRESS"]);
     await expect(
       pollContainerStatus(client, "container_5", 3, 1),
     ).rejects.toThrow(/did not finish processing after 3 polls/);
