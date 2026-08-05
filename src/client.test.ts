@@ -69,6 +69,22 @@ describe("InstagramClient — URL construction", () => {
     );
   });
 
+  it("GET builds URL against graph.instagram.com for instagram_login tokens", async () => {
+    const fetchMock = mockFetchOk({ data: [] });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const client = new InstagramClient({
+      ...creds,
+      tokenType: "instagram_login",
+    });
+    await client.get("/17841400000000000/insights");
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url.toString()).toMatch(
+      /^https:\/\/graph\.instagram\.com\/v21\.0\/17841400000000000\/insights\?/,
+    );
+  });
+
   it("GET puts access_token and extra params in query string", async () => {
     const fetchMock = mockFetchOk({ data: [] });
     vi.stubGlobal("fetch", fetchMock);
@@ -238,6 +254,22 @@ describe("createClient — caching", () => {
     const a = createClient({ accessToken: "tok_shared", accountId: "acc_1_u" });
     const b = createClient({ accessToken: "tok_shared", accountId: "acc_2_u" });
     expect(a).not.toBe(b);
+  });
+
+  it("returns different instances for same token but different tokenType", () => {
+    const a = createClient({
+      accessToken: "tok_shared_type",
+      accountId: "acc_type",
+      tokenType: "facebook_page",
+    });
+    const b = createClient({
+      accessToken: "tok_shared_type",
+      accountId: "acc_type",
+      tokenType: "instagram_login",
+    });
+    expect(a).not.toBe(b);
+    expect(a.tokenType).toBe("facebook_page");
+    expect(b.tokenType).toBe("instagram_login");
   });
 
   it("returned clients carry the provided creds", () => {

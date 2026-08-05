@@ -38,6 +38,7 @@ const { version } = require("../package.json") as { version: string };
 
 const DEFAULT_ACCESS_TOKEN = process.env.INSTAGRAM_ACCESS_TOKEN;
 const DEFAULT_ACCOUNT_ID = process.env.INSTAGRAM_BUSINESS_ACCOUNT_ID;
+const DEFAULT_TOKEN_TYPE = process.env.INSTAGRAM_TOKEN_TYPE;
 
 // --- Credential resolution ---
 
@@ -54,20 +55,33 @@ const credentialFields = {
     .describe(
       "Instagram Business Account ID. Falls back to INSTAGRAM_BUSINESS_ACCOUNT_ID env var.",
     ),
+  tokenType: z
+    .enum(["facebook_page", "instagram_login"])
+    .optional()
+    .describe(
+      "Token type: facebook_page (default) or instagram_login. Falls back to INSTAGRAM_TOKEN_TYPE env var.",
+    ),
 };
 
 interface CredentialArgs {
   accessToken?: string;
   accountId?: string;
+  tokenType?: "facebook_page" | "instagram_login";
 }
 
 export function resolveCredentials(
   args: CredentialArgs,
-): { accessToken: string; accountId: string } | null {
+): {
+  accessToken: string;
+  accountId: string;
+  tokenType?: "facebook_page" | "instagram_login";
+} | null {
   const accessToken = args.accessToken || DEFAULT_ACCESS_TOKEN;
   const accountId = args.accountId || DEFAULT_ACCOUNT_ID;
+  const tokenType =
+    args.tokenType || (DEFAULT_TOKEN_TYPE as CredentialArgs["tokenType"]);
   if (!accessToken || !accountId) return null;
-  return { accessToken, accountId };
+  return { accessToken, accountId, tokenType };
 }
 
 type ClientResult =

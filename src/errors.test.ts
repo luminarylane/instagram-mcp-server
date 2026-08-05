@@ -45,34 +45,19 @@ describe("extractApiDetail", () => {
 
 describe("suggestAction — network errors (no statusCode)", () => {
   it("ENOTFOUND → DNS_FAILURE", () => {
-    const r = suggestAction(
-      "ig_get_account_insights",
-      undefined,
-      undefined,
-      "getaddrinfo ENOTFOUND graph.facebook.com",
-    );
+    const r = suggestAction("ig_get_account_insights", undefined, undefined, "getaddrinfo ENOTFOUND graph.facebook.com");
     expect(r).toMatch(/^DNS_FAILURE:/);
   });
 
   it("timeout → TIMEOUT", () => {
     expect(
-      suggestAction(
-        "ig_get_comments",
-        undefined,
-        undefined,
-        "The operation was aborted due to timeout",
-      ),
+      suggestAction("ig_get_comments", undefined, undefined, "The operation was aborted due to timeout"),
     ).toMatch(/^TIMEOUT:/);
   });
 
   it("ECONNREFUSED → CONNECTION_FAILED", () => {
     expect(
-      suggestAction(
-        "ig_get_comments",
-        undefined,
-        undefined,
-        "connect ECONNREFUSED 31.13.84.4:443",
-      ),
+      suggestAction("ig_get_comments", undefined, undefined, "connect ECONNREFUSED 31.13.84.4:443"),
     ).toMatch(/^CONNECTION_FAILED:/);
   });
 
@@ -100,18 +85,14 @@ describe("suggestAction — token errors (high priority for Bug #6)", () => {
   });
 
   it("'Cannot parse access token' → AUTH_FAILED", () => {
-    expect(suggestAction("any", 400, "Cannot parse access token")).toMatch(
-      /^AUTH_FAILED:/,
-    );
+    expect(
+      suggestAction("any", 400, "Cannot parse access token"),
+    ).toMatch(/^AUTH_FAILED:/);
   });
 
   it("'access token has expired' → AUTH_FAILED", () => {
     expect(
-      suggestAction(
-        "any",
-        400,
-        "Error validating access token: access token has expired",
-      ),
+      suggestAction("any", 400, "Error validating access token: access token has expired"),
     ).toMatch(/^AUTH_FAILED:/);
   });
 
@@ -122,15 +103,14 @@ describe("suggestAction — token errors (high priority for Bug #6)", () => {
   });
 
   it("'malformed access token' → AUTH_FAILED", () => {
-    expect(suggestAction("any", 400, "Malformed access token")).toMatch(
-      /^AUTH_FAILED:/,
-    );
+    expect(
+      suggestAction("any", 400, "Malformed access token"),
+    ).toMatch(/^AUTH_FAILED:/);
   });
 
   // REGRESSION: generic OAuthException for metric errors must NOT be AUTH_FAILED
   it("metric error mentioning OAuthException is NOT AUTH_FAILED", () => {
-    const metricErr =
-      "OAuthException: (#100) metric[2] must be one of the following values: reach, follower_count, profile_views";
+    const metricErr = "OAuthException: (#100) metric[2] must be one of the following values: reach, follower_count, profile_views";
     const r = suggestAction("ig_get_stories_insights", 400, metricErr);
     expect(r).not.toMatch(/^AUTH_FAILED:/);
     expect(r).toMatch(/^INVALID_REQUEST:/);
@@ -149,21 +129,13 @@ describe("suggestAction — 400 media errors (regression guard for Bug #9)", () 
 
   it("subcode 2207052 → INVALID_MEDIA", () => {
     expect(
-      suggestAction(
-        "ig_publish_carousel",
-        400,
-        "Some error text (subcode: 2207052)",
-      ),
+      suggestAction("ig_publish_carousel", 400, "Some error text (subcode: 2207052)"),
     ).toMatch(/^INVALID_MEDIA:/);
   });
 
   it("subcode 2207027 → INVALID_MEDIA", () => {
     expect(
-      suggestAction(
-        "ig_publish_photo",
-        400,
-        "Media ID is not available (subcode: 2207027)",
-      ),
+      suggestAction("ig_publish_photo", 400, "Media ID is not available (subcode: 2207027)"),
     ).toMatch(/^INVALID_MEDIA:/);
   });
 
@@ -189,11 +161,7 @@ describe("suggestAction — other 400 branches", () => {
 
   it("carousel children error → INVALID_CAROUSEL", () => {
     expect(
-      suggestAction(
-        "ig_publish_carousel",
-        400,
-        "Carousel children must be between 2 and 10",
-      ),
+      suggestAction("ig_publish_carousel", 400, "Carousel children must be between 2 and 10"),
     ).toMatch(/^INVALID_CAROUSEL:/);
   });
 
@@ -228,9 +196,9 @@ describe("suggestAction — 401/403/404", () => {
   });
 
   it("403 with 'business' → BUSINESS_ACCOUNT_REQUIRED", () => {
-    expect(suggestAction("any", 403, "A business account is required")).toMatch(
-      /^BUSINESS_ACCOUNT_REQUIRED:/,
-    );
+    expect(
+      suggestAction("any", 403, "A business account is required"),
+    ).toMatch(/^BUSINESS_ACCOUNT_REQUIRED:/);
   });
 
   it("403 unmatched → FORBIDDEN", () => {
@@ -260,9 +228,9 @@ describe("suggestAction — 401/403/404", () => {
   // Real-world: ig_get_stories_insights contains both 'story' and 'insight',
   // and 'insight' is checked first → MEDIA_NOT_FOUND (documented quirk).
   it("404 ig_get_stories_insights → MEDIA_NOT_FOUND (insight wins)", () => {
-    expect(suggestAction("ig_get_stories_insights", 404, "not found")).toMatch(
-      /^MEDIA_NOT_FOUND:/,
-    );
+    expect(
+      suggestAction("ig_get_stories_insights", 404, "not found"),
+    ).toMatch(/^MEDIA_NOT_FOUND:/);
   });
 
   it("404 generic tool → NOT_FOUND", () => {
@@ -274,7 +242,9 @@ describe("suggestAction — 401/403/404", () => {
 
 describe("suggestAction — 429 and 5xx", () => {
   it("429 → RATE_LIMITED", () => {
-    expect(suggestAction("any", 429, "rate limited")).toMatch(/^RATE_LIMITED:/);
+    expect(suggestAction("any", 429, "rate limited")).toMatch(
+      /^RATE_LIMITED:/,
+    );
   });
 
   it("500 → SERVER_ERROR", () => {
