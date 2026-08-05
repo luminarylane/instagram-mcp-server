@@ -1,9 +1,10 @@
 {
   "name": "@luminarylane/instagram-mcp-server",
-  "version": "1.6.9",
+  "version": "1.6.10",
   "description": "Standalone Instagram MCP Server — SENSE + ACT tools for the Graph API",
   "type": "module",
   "main": "dist/index.js",
+  "exports": { ".": "./dist/index.js", "./lib": "./dist/lib/index.js" },
   "bin": {
     "luminarylane-instagram-mcp": "dist/index.js"
   },
