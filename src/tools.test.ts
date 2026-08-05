@@ -77,6 +77,19 @@ describe("resolveCredentials", () => {
       expect(r).toBeNull();
     }
   });
+
+  it("includes tokenType when provided", () => {
+    const r = resolveCredentials({
+      accessToken: "tok",
+      accountId: "acc",
+      tokenType: "instagram_login",
+    });
+    expect(r).toEqual({
+      accessToken: "tok",
+      accountId: "acc",
+      tokenType: "instagram_login",
+    });
+  });
 });
 
 describe("safeHandler", () => {

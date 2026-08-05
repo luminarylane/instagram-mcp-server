@@ -41,7 +41,7 @@ A Model Context Protocol (MCP) server that connects Claude Desktop (and other MC
 
 ### Prerequisites
 
-- Node.js 18+
+- Node.js 22.14+
 - An Instagram Business or Creator account connected to a Facebook Page
 - A Facebook App with the Instagram Graph API enabled
 - A long-lived Page Access Token
@@ -55,6 +55,16 @@ A Model Context Protocol (MCP) server that connects Claude Desktop (and other MC
 4. [Extend the token](https://developers.facebook.com/tools/debug/accesstoken/) to a long-lived token (60 days)
 
 ### Installation
+
+Published package: [@luminarylane/instagram-mcp-server on npm](https://www.npmjs.com/package/@luminarylane/instagram-mcp-server)
+
+Run without a global install:
+
+```bash
+INSTAGRAM_ACCESS_TOKEN=your-token INSTAGRAM_BUSINESS_ACCOUNT_ID=your-account-id npx --yes @luminarylane/instagram-mcp-server
+```
+
+To run from source:
 
 ```bash
 git clone https://github.com/luminarylane/instagram-mcp-server.git
@@ -71,8 +81,8 @@ npm run build
 {
   "mcpServers": {
     "instagram": {
-      "command": "node",
-      "args": ["/path/to/instagram-mcp-server/dist/index.js"],
+      "command": "npx",
+      "args": ["--yes", "@luminarylane/instagram-mcp-server"],
       "env": {
         "INSTAGRAM_ACCESS_TOKEN": "your_long_lived_page_token",
         "INSTAGRAM_BUSINESS_ACCOUNT_ID": "your_17_digit_ig_business_account_id"

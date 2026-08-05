@@ -1,18 +1,26 @@
 {
-  "name": "instagram-mcp-server",
-  "version": "1.6.6",
+  "name": "@luminarylane/instagram-mcp-server",
+  "version": "1.6.8",
   "description": "Standalone Instagram MCP Server — SENSE + ACT tools for the Graph API",
   "type": "module",
   "main": "dist/index.js",
   "bin": {
-    "instagram-mcp-server": "dist/index.js"
+    "luminarylane-instagram-mcp": "dist/index.js"
   },
   "scripts": {
     "dev": "tsx src/index.ts",
     "build": "tsc",
     "start": "node dist/index.js",
-    "test": "vitest run"
+    "test": "vitest run",
+    "check": "npm test && npm run build"
   },
+  "files": ["dist", "README.md", "LICENSE", "SECURITY.md"],
+  "engines": { "node": ">=22.14.0" },
+  "repository": { "type": "git", "url": "git+https://github.com/luminarylane/instagram-mcp-server.git" },
+  "bugs": { "url": "https://github.com/luminarylane/instagram-mcp-server/issues" },
+  "homepage": "https://github.com/luminarylane/instagram-mcp-server#readme",
+  "license": "MIT",
+  "publishConfig": { "access": "public" },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "zod": "^4.1.5"
@@ -21,10 +29,11 @@
     "router": {
       "path-to-regexp": ">=8.4.0"
     },
-    "fast-uri": "^3.1.2"
+    "fast-uri": "^4.1.2",
+    "ip-address": "^10.4.0"
   },
   "devDependencies": {
-    "@types/node": "^26.0.1",
+    "@types/node": "^22.0.0",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
     "vitest": "^4.0.18"

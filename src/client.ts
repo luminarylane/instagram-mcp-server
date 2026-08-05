@@ -1,19 +1,27 @@
 /**
  * Instagram Graph API client.
  *
- * Raw fetch wrapper against https://graph.instagram.com/v22.0/.
- * No SDK — keeps dependencies minimal (Occam's Razor).
- * Client instances are cached by credential hash.
+ * Raw fetch wrapper against Facebook Graph API (for Facebook-Login/Page tokens)
+ * or Instagram Graph API (for Instagram Login tokens). No SDK — keeps
+ * dependencies minimal (Occam's Razor). Client instances are cached by
+ * credential + tokenType hash.
  */
 
 import { createHash } from "node:crypto";
 
-const GRAPH_API_BASE = "https://graph.facebook.com/v21.0";
 const CLIENT_TTL_MS = 4 * 60 * 60 * 1000; // 4 hours
+
+export type InstagramTokenType = "facebook_page" | "instagram_login";
+
+const GRAPH_API_BASE: Record<InstagramTokenType, string> = {
+  facebook_page: "https://graph.facebook.com/v21.0",
+  instagram_login: "https://graph.instagram.com/v21.0",
+};
 
 export interface Credentials {
   accessToken: string;
   accountId: string;
+  tokenType?: InstagramTokenType;
 }
 
 interface CachedClient {
@@ -24,7 +32,7 @@ interface CachedClient {
 const clientCache = new Map<string, CachedClient>();
 
 function credentialHash(creds: Credentials): string {
-  const raw = `${creds.accessToken}:${creds.accountId}`;
+  const raw = `${creds.accessToken}:${creds.accountId}:${creds.tokenType ?? "facebook_page"}`;
   return createHash("sha256").update(raw).digest("hex").slice(0, 16);
 }
 
@@ -102,10 +110,14 @@ export class InstagramApiError extends Error {
 export class InstagramClient {
   readonly accessToken: string;
   readonly accountId: string;
+  readonly tokenType: InstagramTokenType;
+  private readonly baseUrl: string;
 
   constructor(creds: Credentials) {
     this.accessToken = creds.accessToken;
     this.accountId = creds.accountId;
+    this.tokenType = creds.tokenType ?? "facebook_page";
+    this.baseUrl = GRAPH_API_BASE[this.tokenType];
   }
 
   /**
@@ -115,7 +127,7 @@ export class InstagramClient {
     path: string,
     params?: Record<string, string>,
   ): Promise<T> {
-    const url = new URL(`${GRAPH_API_BASE}${path}`);
+    const url = new URL(`${this.baseUrl}${path}`);
     url.searchParams.set("access_token", this.accessToken);
     if (params) {
       for (const [key, value] of Object.entries(params)) {
@@ -137,7 +149,7 @@ export class InstagramClient {
     path: string,
     body?: Record<string, unknown>,
   ): Promise<T> {
-    const url = new URL(`${GRAPH_API_BASE}${path}`);
+    const url = new URL(`${this.baseUrl}${path}`);
     url.searchParams.set("access_token", this.accessToken);
 
     const res = await fetch(url, {
@@ -154,7 +166,7 @@ export class InstagramClient {
    * Make a DELETE request to the Graph API.
    */
   async delete<T = unknown>(path: string): Promise<T> {
-    const url = new URL(`${GRAPH_API_BASE}${path}`);
+    const url = new URL(`${this.baseUrl}${path}`);
     url.searchParams.set("access_token", this.accessToken);
 
     const res = await fetch(url, {
