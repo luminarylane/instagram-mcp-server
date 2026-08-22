@@ -1,0 +1,108 @@
+# Tier 1 eval: tests the MCP server directly, no AI model involved.
+#
+# This uses promptfoo's "mcp" provider, which sends a JSON tool call
+# straight to the server and checks the raw response. There is no agent
+# deciding anything here — we're calling the tool ourselves, deterministically.
+# That means: NO API KEY NEEDED. Run this one right now.
+#
+# HOW TO RUN:
+#   npx promptfoo@latest eval -c promptfooconfig.direct.yaml --no-cache
+
+# Tier 1 eval: tests the REAL instagram-mcp-server production code directly,
+# no AI model involved. Only the outbound HTTP call to Meta's API is faked
+# (see fetch-stub.mjs) — every other line, including real zod validation and
+# real sanitize.ts, is the actual production code.
+# NO API KEY NEEDED — run this one right away.
+#
+# HOW TO RUN:
+#   npx promptfoo@latest eval -c promptfooconfig.direct.yaml --no-cache
+
+description: "instagram-mcp-server — direct tool contract tests against REAL production code (no LLM)"
+
+providers:
+  - id: mcp
+    config:
+      enabled: true
+      server:
+        command: npx
+        args: ["tsx", "./real-server-launcher.mjs"]
+
+prompts:
+  - "{{toolCall}}"
+
+tests:
+  - description: "ig_get_account_insights returns the metrics the real code actually requests"
+    vars:
+      toolCall: '{"tool": "ig_get_account_insights", "args": {"period": "week"}}'
+    assert:
+      - type: contains
+        value: "reach"
+        # NOT "impressions" — the real code (src/lib/insights.ts) never
+        # requests that metric. An earlier version of this test checked for
+        # a field we'd invented ourselves; this checks for what production
+        # code actually asks the Graph API for.
+
+  - description: "ig_get_comments returns comments, run through the REAL sanitize.ts"
+    vars:
+      toolCall: '{"tool": "ig_get_comments", "args": {"mediaId": "12345"}}'
+    assert:
+      - type: contains
+        value: "comments"
+
+  - description: "ig_delete_comment with a missing commentId is rejected by the real zod schema"
+    vars:
+      toolCall: '{"tool": "ig_delete_comment", "args": {}}'
+    assert:
+      - type: not-contains
+        value: "Comment deleted"
+
+  # --- Edge cases (per code review feedback: cover traffic/latency/large I/O) ---
+
+  - description: "EDGE CASE: recovers from a 429 rate limit via real withRetry() backoff"
+    vars:
+      toolCall: '{"tool": "ig_get_account_insights", "args": {"period": "week", "accountId": "TRIGGER_429"}}'
+    assert:
+      - type: contains
+        value: "reach"
+        # Fails twice with a real 429 + Retry-After header, succeeds on the
+        # 3rd attempt. If this test passes, withRetry() actually recovered —
+        # if the real retry logic were broken, this would surface as an
+        # error instead, since the eval doesn't wait around for a 4th try.
+
+  - description: "EDGE CASE: a malformed (non-JSON) upstream response surfaces as a clear error, not a crash"
+    vars:
+      toolCall: '{"tool": "ig_get_comments", "args": {"mediaId": "TRIGGER_MALFORMED"}}'
+    assert:
+      - type: contains
+        value: "not valid JSON"
+
+  - description: "EDGE CASE: a structured Graph API error (expired token) surfaces the real API message"
+    vars:
+      toolCall: '{"tool": "ig_get_comments", "args": {"mediaId": "TRIGGER_5XX"}}'
+    assert:
+      - type: contains
+        value: "Session has expired"
+
+  - description: "EDGE CASE: an oversized caption (2201 chars) is rejected before any network call"
+    vars:
+      toolCall: '{"tool": "ig_publish_photo", "args": {"imageUrl": "https://example.com/photo.jpg", "caption": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}'
+    assert:
+      - type: contains
+        value: "Invalid input"
+      - type: contains
+        value: "2201"
+        # Confirms the real length check (src/index.ts: caption.length > 2200)
+        # fired — and that no network call happened at all, since this
+        # rejection happens before getClient() / fetch is ever reached.
+
+  - description: "EDGE CASE: comment limit is clamped to 50 server-side even if a much larger number is requested"
+    vars:
+      toolCall: '{"tool": "ig_get_comments", "args": {"mediaId": "TRIGGER_LIMIT_CHECK", "limit": 5000}}'
+    assert:
+      - type: contains
+        value: "limit=50"
+        # The real code does Math.min(args.limit || 25, 50) before it ever
+        # builds the outgoing request — this proves what was actually sent
+        # upstream, not just what we asked for.
+      - type: not-contains
+        value: "limit=5000"

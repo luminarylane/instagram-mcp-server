@@ -134,6 +134,28 @@ All publish tools accept an optional `firstComment` parameter to add a comment i
 
 The server enforces per-account rate limits to stay within Instagram's API quotas. If you hit a rate limit, the tool will return an error with a suggested retry time. The built-in retry logic handles transient 429 responses automatically.
 
+## Evals
+
+In addition to the unit tests (`npm test`), this repo has [promptfoo](https://promptfoo.dev)-based evals in `evals/` that test two different things:
+
+**Tier 1 — server contract tests** (`promptfooconfig.direct.yaml`). Calls tools directly with fixed inputs and checks the response — no AI model involved. Verifies things like input validation and correct output shape. No API key required.
+
+**Tier 2 — agent behavior tests** (`promptfooconfig.yaml`). Gives an AI model this server's tools and a plain-English instruction, then checks whether it picks the right tool with the right arguments — including whether it can be manipulated by an instruction embedded inside untrusted data (e.g. comment text). The system prompt deliberately contains no explicit "don't be tricked" instruction — the intent is to test whether the MCP server's own output handling is sufficient on its own to keep untrusted content from being treated as instructions, not whether the agent follows extra hand-holding from us. Requires `ANTHROPIC_API_KEY`.
+
+Both configs run the **actual production server code** (`../src/index.ts`, imported directly via `evals/real-server-launcher.mjs`) — real zod validation, real `sanitize.ts`, real tool handlers. Only the outbound HTTP call to the Instagram Graph API is faked (`evals/fetch-stub.mjs`), since that's the one thing an eval genuinely can't hit safely. This means the evals exercise the same code path production traffic does; they are not testing a reimplementation.
+
+Tier 1 also covers edge cases beyond the happy path: a 429 rate limit that recovers via the real retry/backoff logic, a malformed (non-JSON) upstream response, a structured Graph API error (expired token), an oversized caption rejected before any network call, and server-side clamping of an oversized `limit` parameter. **Not covered:** the real 30-second request timeout — faithfully testing it would mean a 30-second test or mocking Node's timers, which wasn't judged worth the cost here; flagging this explicitly rather than silently skipping it.
+
+```bash
+npm install               # repo root — real src/index.ts needs its own deps
+cd evals
+npm install
+npx promptfoo@latest eval -c promptfooconfig.direct.yaml --no-cache   # Tier 1, no key
+export ANTHROPIC_API_KEY=your-key-here
+npx promptfoo@latest eval -c promptfooconfig.yaml --no-cache          # Tier 2
+npx promptfoo@latest view
+```
+
 ## Contributing
 
 1. Fork the repo
